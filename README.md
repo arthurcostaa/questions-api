@@ -1,0 +1,1 @@
+A simple REST API for solving questions
