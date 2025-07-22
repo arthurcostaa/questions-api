@@ -1,9 +1,67 @@
 from django.urls import reverse
 from rest_framework import status
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework.test import APIClient, APITestCase
-from rest_framework_simplejwt.tokens import AccessToken
 
 from users.models import CustomUser
+
+
+class JWTTokenAuthenticationTest(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.clean_password = 'Str0ngP4ssw0d#123'
+        self.user = CustomUser.objects.create_user(
+            email='test@test.com', name='user test', password=self.clean_password
+        )
+
+    def test_obtain_token_pair(self):
+        data = {'email': self.user.email, 'password': self.clean_password}
+        response = self.client.post(reverse('token_obtain_pair'), data=data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.json())
+        self.assertIn('refresh', response.json())
+
+    def test_obtain_token_pair_with_unexistent_email(self):
+        data = {'email': 'email@email.com', 'password': 'abc.12345'}
+        response = self.client.post(reverse('token_obtain_pair'), data=data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertDictEqual(
+            response.json(),
+            {'detail': 'No active account found with the given credentials'}
+        )
+
+    def test_obtain_token_pair_with_wrong_password(self):
+        data = {'email': self.user.email, 'password': 'WrongPassword.123'}
+        response = self.client.post(reverse('token_obtain_pair'), data=data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertDictEqual(
+            response.json(),
+            {'detail': 'No active account found with the given credentials'}
+        )
+
+    def test_refresh_access_token(self):
+        refresh_token = str(RefreshToken.for_user(self.user))
+        data = {'refresh': refresh_token}
+        response = self.client.post(reverse('token_refresh'), data=data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.json())
+
+    def test_refresh_access_token_with_blank_refresh_token(self):
+        refresh_token = ''
+        data = {'refresh': refresh_token}
+        response = self.client.post(reverse('token_refresh'), data=data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertDictEqual(response.json(), {'refresh': ['This field may not be blank.']})
+
+    def test_refresh_access_token_with_wrong_refresh_token(self):
+        refresh_token = 'INVALID TOKEN'
+        data = {'refresh': refresh_token}
+        response = self.client.post(reverse('token_refresh'), data=data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertDictEqual(
+            response.json(),
+            {'detail': 'Token is invalid', 'code': 'token_not_valid'}
+        )
 
 
 class CustomUserCreateViewTest(APITestCase):
