@@ -83,6 +83,18 @@ class CustomUserCreateViewTest(APITestCase):
         self.assertEqual(response.json()['email'], 'johndoe@email.com')
         self.assertIsNotNone(response.json()['date_joined'])
 
+    def test_create_user_with_weak_password(self):
+        response = self.client.post(
+            reverse('create'),
+            data={
+                'name': 'John Doe',
+                'email': 'johndoe@email.com',
+                'password': 'John123',
+            }
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.json())
+
 
 class CustomUserRetrieveUpdateDestroyViewTest(APITestCase):
     def setUp(self):
@@ -248,6 +260,20 @@ class CustomUserRetrieveUpdateDestroyViewTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(response.json(), {'email': ['user with this email already exists.']})
 
+    def test_update_put_user_with_weak_password(self):
+        data = {
+            'name': self.user1.name,
+            'email': self.user1.email,
+            'password': '12345',
+        }
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        response = self.client.put(
+            reverse('retrieve-update-destroy', kwargs={'pk': self.user1.pk}),
+            data=data
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.json())
+
     def test_update_patch_user(self):
         data = {'email': 'new@email.com', 'name': 'new name'}
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
@@ -296,3 +322,13 @@ class CustomUserRetrieveUpdateDestroyViewTest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(response.json(), {'email': ['user with this email already exists.']})
+
+    def test_update_patch_user_with_weak_password(self):
+        data = {'password': '12345'}
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        response = self.client.patch(
+            reverse('retrieve-update-destroy', kwargs={'pk': self.user1.pk}),
+            data=data
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.json())
