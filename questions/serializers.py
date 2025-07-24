@@ -25,6 +25,10 @@ class QuestionSerializer(serializers.ModelSerializer):
         if value is not None and len(value) > MAX_CHOICES or len(value) < MIN_CHOICES:
             raise serializers.ValidationError('A question should have 4 or 5 choices.')
 
+        num_true_questions = sum(choice['is_correct'] for choice in value)
+        if num_true_questions != 1:
+            raise serializers.ValidationError('A question should have only one correct choice.')
+
         return value
 
     def validate_year(self, value):
