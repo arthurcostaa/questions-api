@@ -165,3 +165,24 @@ class QuestionCreateViewTest(APITestCase):
             response.json(),
             {'choices': ['A question should have only one correct choice.']}
         )
+
+    def test_create_question_with_repetead_display_order(self):
+        data = {
+            'stem': '2 + 2 equals',
+            'year': 2025,
+            'education_level': 'EF',
+            'choices': [
+                {'text': '1', 'is_correct': False, 'display_order': 1},
+                {'text': '2', 'is_correct': False, 'display_order': 2},
+                {'text': '3', 'is_correct': False, 'display_order': 3},
+                {'text': '4', 'is_correct': True, 'display_order': 4},
+                {'text': '5', 'is_correct': False, 'display_order': 1},
+            ]
+        }
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        response = self.client.post(reverse('questions-list'), data=data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertDictEqual(
+            response.json(),
+            {'choices': ['A question cannot have choices with repeated display order.']}
+        )

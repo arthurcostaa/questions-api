@@ -29,6 +29,16 @@ class QuestionSerializer(serializers.ModelSerializer):
         if num_true_questions != 1:
             raise serializers.ValidationError('A question should have only one correct choice.')
 
+        display_order_values = [choice['display_order'] for choice in value]
+        numbers = set()
+        for number in display_order_values:
+            if number in numbers:
+                raise serializers.ValidationError(
+                    'A question cannot have choices with repeated display order.'
+                )
+            else:
+                numbers.add(number)
+
         return value
 
     def validate_year(self, value):
