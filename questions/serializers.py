@@ -3,6 +3,11 @@ from datetime import date
 from rest_framework import serializers
 
 from questions.models import Choice, Question
+from questions.utils import (
+    has_only_one_correct_choice,
+    has_unique_display_order,
+    has_valid_number_of_choices,
+)
 
 
 class ChoiceSerializer(serializers.ModelSerializer):
@@ -19,25 +24,16 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = ['id', 'stem', 'year', 'education_level', 'choices']
 
     def validate_choices(self, value):
-        MIN_CHOICES = 4
-        MAX_CHOICES = 5
-
-        if value is not None and len(value) > MAX_CHOICES or len(value) < MIN_CHOICES:
+        if not has_valid_number_of_choices(value):
             raise serializers.ValidationError('A question should have 4 or 5 choices.')
 
-        num_true_questions = sum(choice['is_correct'] for choice in value)
-        if num_true_questions != 1:
+        if not has_only_one_correct_choice(value):
             raise serializers.ValidationError('A question should have only one correct choice.')
 
-        display_order_values = [choice['display_order'] for choice in value]
-        numbers = set()
-        for number in display_order_values:
-            if number in numbers:
-                raise serializers.ValidationError(
-                    'A question cannot have choices with repeated display order.'
-                )
-            else:
-                numbers.add(number)
+        if not has_unique_display_order(value):
+            raise serializers.ValidationError(
+                'A question cannot have choices with repeated display order.'
+            )
 
         return value
 
