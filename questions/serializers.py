@@ -23,6 +23,17 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = ['id', 'stem', 'year', 'education_level', 'choices']
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+
+        if request is not None and not request.user.is_staff:
+            for choice in representation['choices']:
+                if 'is_correct' in choice:
+                    choice.pop('is_correct')
+
+        return representation
+
     def validate_choices(self, value):
         if not has_valid_number_of_choices(value):
             raise serializers.ValidationError('A question should have 4 or 5 choices.')
