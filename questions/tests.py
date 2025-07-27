@@ -284,3 +284,57 @@ class QuestionRetrieveViewTest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(response.json(), {'detail': 'Authentication credentials were not provided.'})
+
+
+class QuestionDestroyViewTest(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = CustomUser.objects.create_user(
+            name='johndoe', email='johndoe@email.com', password='Str0ngP4ssw0rd#123'
+        )
+        self.user.access_token = AccessToken.for_user(self.user)
+        self.admin = CustomUser.objects.create_superuser(
+            name='admin', email='admin@email.com', password='Str0ngP4ssw0rd#123'
+        )
+        self.admin.access_token = AccessToken.for_user(self.admin)
+        self.question = Question.objects.create(
+            stem='2 + 2 equals', year=2025, education_level='EF'
+        )
+        self.choice1 = Choice.objects.create(question=self.question, text='1', is_correct=False, display_order=1)
+        self.choice2 = Choice.objects.create(question=self.question, text='2', is_correct=False, display_order=2)
+        self.choice3 = Choice.objects.create(question=self.question, text='3', is_correct=False, display_order=3)
+        self.choice4 = Choice.objects.create(question=self.question, text='4', is_correct=True, display_order=4)
+        self.choice5 = Choice.objects.create(question=self.question, text='5', is_correct=False, display_order=5)
+
+    def test_delete_question_with_admin_user(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        response = self.client.delete(
+            reverse('questions-detail', kwargs={'pk': self.question.id})
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_delete_question_with_normal_user(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
+        response = self.client.delete(
+            reverse('questions-detail', kwargs={'pk': self.question.id})
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertDictEqual(
+            response.json(),
+            {'detail': 'You do not have permission to perform this action.'}
+        )
+
+    def test_delete_question_with_unauthenticated_user(self):
+        response = self.client.delete(
+            reverse('questions-detail', kwargs={'pk': self.question.id})
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.json(), {'detail': 'Authentication credentials were not provided.'})
+
+    def test_delete_unexistent_question(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        response = self.client.delete(
+            reverse('questions-detail', kwargs={'pk': 9999999})
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertDictEqual(response.json(), {'detail': 'No Question matches the given query.'})

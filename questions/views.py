@@ -11,9 +11,13 @@ class QuestionViewSet(viewsets.GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_permissions(self):
-        if self.action == 'create':
+        if self.action in ('create', 'destroy'):
             return [permissions.IsAdminUser()]
         return super().get_permissions()
+
+    def perform_destroy(self, instance):
+        instance.choices.all().delete()
+        instance.delete()
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -25,3 +29,8 @@ class QuestionViewSet(viewsets.GenericViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+    def destroy(self, request, pk=None):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
