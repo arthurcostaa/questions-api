@@ -6,7 +6,7 @@ from questions.serializers import QuestionSerializer
 
 
 class QuestionViewSet(viewsets.GenericViewSet):
-    queryset = Question.objects.all()
+    queryset = Question.objects.prefetch_related('choices').all()
     serializer_class = QuestionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
