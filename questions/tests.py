@@ -338,3 +338,74 @@ class QuestionDestroyViewTest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertDictEqual(response.json(), {'detail': 'No Question matches the given query.'})
+
+
+class QuestionUpdateViewTest(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = CustomUser.objects.create_user(
+            name='johndoe', email='johndoe@email.com', password='Str0ngP4ssw0rd#123'
+        )
+        self.user.access_token = AccessToken.for_user(self.user)
+        self.admin = CustomUser.objects.create_superuser(
+            name='admin', email='admin@email.com', password='Str0ngP4ssw0rd#123'
+        )
+        self.admin.access_token = AccessToken.for_user(self.admin)
+        self.question = Question.objects.create(
+            stem='2 + 2 equals', year=2025, education_level='EF'
+        )
+        self.choice1 = Choice.objects.create(question=self.question, text='1', is_correct=False, display_order=1)
+        self.choice2 = Choice.objects.create(question=self.question, text='2', is_correct=False, display_order=2)
+        self.choice3 = Choice.objects.create(question=self.question, text='3', is_correct=False, display_order=3)
+        self.choice4 = Choice.objects.create(question=self.question, text='4', is_correct=False, display_order=4)
+        self.choice5 = Choice.objects.create(question=self.question, text='5', is_correct=True, display_order=5)
+
+    def test_update_question_with_admin_user(self):
+        data = {
+            'stem': self.question.stem,
+            'year': self.question.year,
+            'education_level': self.question.education_level,
+            'choices': [
+                {'id': self.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
+                {'id': self.question.choices.all()[1].id, 'text': '2', 'is_correct': False, 'display_order': 2},
+                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
+                {'id': self.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
+                {'id': self.question.choices.all()[4].id, 'text': '5', 'is_correct': False, 'display_order': 5},
+            ]
+        }
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        response = self.client.put(
+            reverse('questions-detail', kwargs={'pk': self.question.id}), data=data
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], self.question.id)
+        self.assertEqual(response.data['stem'], data['stem'])
+        self.assertEqual(response.data['year'], data['year'])
+        self.assertEqual(response.data['education_level'], data['education_level'])
+
+        self.question.refresh_from_db()
+        choices = list(self.question.choices.order_by('display_order').values('id', 'text', 'is_correct', 'display_order'))
+        self.assertEqual(choices, data['choices'])
+
+    def test_update_question_with_normal_user(self):
+        data = {
+            'stem': self.question.stem,
+            'year': self.question.year,
+            'education_level': self.question.education_level,
+            'choices': [
+                {'id': self.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
+                {'id': self.question.choices.all()[1].id, 'text': '2', 'is_correct': False, 'display_order': 2},
+                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
+                {'id': self.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
+                {'id': self.question.choices.all()[4].id, 'text': '5', 'is_correct': False, 'display_order': 5},
+            ]
+        }
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
+        response = self.client.put(
+            reverse('questions-detail', kwargs={'pk': self.question.id}), data=data
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertDictEqual(
+            response.json(),
+            {'detail': 'You do not have permission to perform this action.'}
+        )

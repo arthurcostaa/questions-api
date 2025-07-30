@@ -11,6 +11,8 @@ from questions.utils import (
 
 
 class ChoiceSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
     class Meta:
         model = Choice
         fields = ['id', 'text', 'is_correct', 'display_order']
@@ -62,3 +64,28 @@ class QuestionSerializer(serializers.ModelSerializer):
             Choice.objects.create(question=question, **choice)
 
         return question
+
+    def update(self, instance, validated_data):
+        incoming_choices = validated_data.pop('choices')
+        incoming_choices_id = {choice['id'] for choice in incoming_choices}
+
+        existing_choices = {choice.id: choice for choice in instance.choices.all()}
+
+        missing_choices = []
+        for choice_id in existing_choices:
+            if choice_id not in incoming_choices_id:
+                missing_choices.append(choice_id)
+
+        if missing_choices:
+            raise serializers.ValidationError({
+                'choices': f'Choices id {missing_choices} not present in new question data.'
+            })
+
+        instance = super().update(instance, validated_data)
+
+        for new_choice_data in incoming_choices:
+            choice_id = new_choice_data['id']
+            existing_choice = existing_choices[choice_id]
+            ChoiceSerializer().update(existing_choice, new_choice_data)
+
+        return instance
