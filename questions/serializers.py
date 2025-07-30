@@ -78,7 +78,7 @@ class QuestionSerializer(serializers.ModelSerializer):
 
         if missing_choices:
             raise serializers.ValidationError({
-                'choices': f'Choices id {missing_choices} not present in new question data.'
+                'choices': [f'Choices id {missing_choices} not present in new question data.']
             })
 
         instance = super().update(instance, validated_data)
