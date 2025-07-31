@@ -12,3 +12,8 @@ dependencies = [
     "psycopg[binary]>=3.2.9",
     "python-dotenv>=1.1.1",
 ]
+
+[dependency-groups]
+dev = [
+    "django-silk>=5.4.0",
+]

@@ -12,7 +12,9 @@ from rest_framework_simplejwt.views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('silk/', include('silk.urls', namespace='silk')),
     path('users/', include('users.urls')),
+    path('questions/', include('questions.urls')),
     path('docs/schema/', SpectacularAPIView.as_view(), name='schema'),
     path(
         'docs/swagger/',
