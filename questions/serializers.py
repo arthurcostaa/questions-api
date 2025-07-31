@@ -95,3 +95,4 @@ class UserAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAnswer
         fields = ['question', 'choice', 'user', 'answered_at', 'is_correct']
+        read_only_fields = ['is_correct']
