@@ -599,4 +599,4 @@ class UserAnswerViewSet(APITestCase):
         data = {'question': self.question1.id, 'choice': self.choice5.id, 'user': self.user.id}
         response = self.client.post(reverse('answer-list'), data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data, {'choice': ['Invalid pk "9999" - object does not exist.']})
+        self.assertDictEqual(response.data, {'error': ["This choice doesn't belong to this question."]})

@@ -96,3 +96,14 @@ class UserAnswerSerializer(serializers.ModelSerializer):
         model = UserAnswer
         fields = ['question', 'choice', 'user', 'answered_at', 'is_correct']
         read_only_fields = ['is_correct']
+
+    def validate(self, data):
+        question = data['question']
+        choice = data['choice']
+
+        if choice not in question.choices.all():
+            raise serializers.ValidationError({
+                'error': "This choice doesn't belong to this question.",
+            })
+
+        return data
