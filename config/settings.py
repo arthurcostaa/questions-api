@@ -104,6 +104,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
+    'NON_FIELD_ERRORS_KEY': 'error',
 }
 
 SPECTACULAR_SETTINGS = {

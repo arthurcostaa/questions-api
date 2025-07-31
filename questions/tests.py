@@ -6,7 +6,7 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework_simplejwt.tokens import AccessToken
 
 from users.models import CustomUser
-from questions.models import Choice, Question
+from questions.models import Choice, Question, UserAnswer
 
 
 class QuestionCreateViewTest(APITestCase):
@@ -600,3 +600,11 @@ class UserAnswerViewSet(APITestCase):
         response = self.client.post(reverse('answer-list'), data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(response.data, {'error': ["This choice doesn't belong to this question."]})
+
+    def test_answer_question_twice(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
+        UserAnswer.objects.create(question=self.question1, choice=self.choice1, user=self.user)
+        data = {'question': self.question1.id, 'choice': self.choice1.id, 'user': self.user.id}
+        response = self.client.post(reverse('answer-list'), data=data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertDictEqual(response.data, {'error': ['Question already answered by the user.']})
