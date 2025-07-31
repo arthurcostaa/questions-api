@@ -1,8 +1,8 @@
 from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 
-from questions.models import Question
-from questions.serializers import QuestionSerializer
+from questions.models import Question, UserAnswer
+from questions.serializers import QuestionSerializer, UserAnswerSerializer
 
 
 class QuestionViewSet(viewsets.GenericViewSet):
@@ -41,3 +41,15 @@ class QuestionViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UserAnswerViewSet(viewsets.GenericViewSet):
+    queryset = UserAnswer.objects.all()
+    serializer_class = UserAnswerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
