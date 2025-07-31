@@ -94,4 +94,4 @@ class QuestionSerializer(serializers.ModelSerializer):
 class UserAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAnswer
-        fields = ['question', 'choice', 'user', 'answered_at']
+        fields = ['question', 'choice', 'user', 'answered_at', 'is_correct']
