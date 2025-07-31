@@ -2,7 +2,7 @@ from datetime import date
 
 from rest_framework import serializers
 
-from questions.models import Choice, Question
+from questions.models import Choice, Question, UserAnswer
 from questions.utils import (
     has_only_one_correct_choice,
     has_unique_display_order,
@@ -89,3 +89,9 @@ class QuestionSerializer(serializers.ModelSerializer):
             ChoiceSerializer().update(existing_choice, new_choice_data)
 
         return instance
+
+
+class UserAnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserAnswer
+        fields = ['question', 'choice', 'user', 'answered_at']

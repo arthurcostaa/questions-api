@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator
 
@@ -40,3 +41,13 @@ class Choice(models.Model):
 
     def __str__(self):
         return f'{self.display_order} - {self.question}'
+
+
+class UserAnswer(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.PROTECT)
+    choice = models.ForeignKey(Choice, on_delete=models.PROTECT)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    answered_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.user.name} - {self.question}'
