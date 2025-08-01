@@ -50,6 +50,11 @@ class UserAnswer(models.Model):
     answered_at = models.DateTimeField(auto_now=True)
     is_correct = models.BooleanField(blank=True, null=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['question', 'user'], name='unique_user_question_answer'),
+        ]
+
     def __str__(self):
         return f'{self.user.name} - {self.question}'
 

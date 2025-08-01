@@ -95,15 +95,8 @@ class QuestionSerializer(serializers.ModelSerializer):
 class UserAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAnswer
-        fields = ['question', 'choice', 'user', 'answered_at', 'is_correct']
+        fields = ['question', 'choice', 'answered_at', 'is_correct']
         read_only_fields = ['is_correct']
-        validators = [
-            UniqueTogetherValidator(
-                UserAnswer.objects.all(),
-                fields=['question', 'user'],
-                message='Question already answered by the user.',
-            )
-        ]
 
     def validate(self, data):
         question = data['question']
@@ -111,5 +104,9 @@ class UserAnswerSerializer(serializers.ModelSerializer):
 
         if choice not in question.choices.all():
             raise serializers.ValidationError("This choice doesn't belong to this question.")
+
+        user = self.context['request'].user
+        if UserAnswer.objects.filter(user=user, question=question).exists():
+            raise serializers.ValidationError('Question already answered by the user.')
 
         return data

@@ -565,38 +565,37 @@ class UserAnswerViewSet(APITestCase):
 
     def test_answer_question(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        data = {'question': self.question1.id, 'choice': self.choice2.id, 'user': self.user.id}
+        data = {'question': self.question1.id, 'choice': self.choice2.id}
         response = self.client.post(reverse('answer-list'), data=data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['question'], data['question'])
         self.assertEqual(response.data['choice'], data['choice'])
-        self.assertEqual(response.data['user'], data['user'])
         self.assertTrue(response.data['is_correct'])
         self.assertIsNotNone(response.data['answered_at'])
 
     def test_answer_question_with_unauthenticated_user(self):
-        data = {'question': self.question1.id, 'choice': self.choice2.id, 'user': self.user.id}
+        data = {'question': self.question1.id, 'choice': self.choice2.id}
         response = self.client.post(reverse('answer-list'), data=data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(response.data, {'detail': 'Authentication credentials were not provided.'})
 
     def test_answer_question_with_unexistent_question(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        data = {'question': 9999, 'choice': self.choice2.id, 'user': self.user.id}
+        data = {'question': 9999, 'choice': self.choice2.id}
         response = self.client.post(reverse('answer-list'), data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, {'question': ['Invalid pk "9999" - object does not exist.']})
 
     def test_answer_question_with_unexistent_choice(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        data = {'question': self.question1.id, 'choice': 9999, 'user': self.user.id}
+        data = {'question': self.question1.id, 'choice': 9999}
         response = self.client.post(reverse('answer-list'), data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, {'choice': ['Invalid pk "9999" - object does not exist.']})
 
     def test_answer_question_with_choice_of_another_question(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        data = {'question': self.question1.id, 'choice': self.choice5.id, 'user': self.user.id}
+        data = {'question': self.question1.id, 'choice': self.choice5.id}
         response = self.client.post(reverse('answer-list'), data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(response.data, {'error': ["This choice doesn't belong to this question."]})
@@ -604,7 +603,7 @@ class UserAnswerViewSet(APITestCase):
     def test_answer_question_twice(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
         UserAnswer.objects.create(question=self.question1, choice=self.choice1, user=self.user)
-        data = {'question': self.question1.id, 'choice': self.choice1.id, 'user': self.user.id}
+        data = {'question': self.question1.id, 'choice': self.choice1.id}
         response = self.client.post(reverse('answer-list'), data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(response.data, {'error': ['Question already answered by the user.']})
