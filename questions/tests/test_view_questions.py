@@ -1,3 +1,4 @@
+import copy
 from datetime import date
 
 from django.urls import reverse
@@ -8,7 +9,10 @@ from rest_framework_simplejwt.tokens import AccessToken
 from users.models import CustomUser
 from questions.models import Choice, Question
 
-class QuestionCreateViewTest(APITestCase):
+class QuestionCreateViewTestCase(APITestCase):
+    def authenticate(self, user):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {user.access_token}')
+
     @classmethod
     def setUpTestData(cls):
         cls.admin = CustomUser.objects.create_superuser(
@@ -23,9 +27,7 @@ class QuestionCreateViewTest(APITestCase):
 
     def setUp(self):
         self.client = APIClient()
-
-    def test_create_question_with_admin_user(self):
-        data = {
+        self.base_data = {
             'stem': '2 + 2 equals',
             'year': 2025,
             'education_level': 'EF',
@@ -37,156 +39,116 @@ class QuestionCreateViewTest(APITestCase):
                 {'text': '5', 'is_correct': False, 'display_order': 5}
             ]
         }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.post(self.url, data=data)
+
+    def test_create_question_with_admin_user(self):
+        self.authenticate(self.admin)
+        response = self.client.post(self.url, data=self.base_data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertIsNotNone(response.json()['id'])
-        self.assertEqual(response.json()['stem'], data['stem'])
-        self.assertEqual(response.json()['year'], data['year'])
-        self.assertEqual(response.json()['education_level'], data['education_level'])
+        self.assertIsNotNone(response.data['id'])
+        self.assertEqual(response.data['stem'], self.base_data['stem'])
+        self.assertEqual(response.data['year'], self.base_data['year'])
+        self.assertEqual(response.data['education_level'], self.base_data['education_level'])
 
         question = Question.objects.get(pk=response.data['id'])
         choices = list(question.choices.order_by('display_order').values('text', 'is_correct', 'display_order'))
-        self.assertEqual(choices, data['choices'])
+        self.assertEqual(choices, self.base_data['choices'])
 
     def test_create_question_with_normal_user(self):
-        data = {
-            'stem': '2 + 2 equals',
-            'year': 2025,
-            'education_level': 'EF',
-            'choices': [
-                {'text': '1', 'is_correct': False, 'display_order': 1},
-                {'text': '2', 'is_correct': False, 'display_order': 2},
-                {'text': '3', 'is_correct': False, 'display_order': 3},
-                {'text': '4', 'is_correct': True, 'display_order': 4},
-                {'text': '5', 'is_correct': False, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        response = self.client.post(self.url, data=data)
+        self.authenticate(self.user)
+        response = self.client.post(self.url, data=self.base_data)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertDictEqual(
-            response.json(), {
+        self.assertEqual(
+            response.data, {
             'detail': 'You do not have permission to perform this action.'}
         )
 
     def test_create_question_with_year_in_the_future(self):
         future_year = date.today().year + 1
-        data = {
-            'stem': '2 + 2 equals',
-            'year': future_year,
-            'education_level': 'EF',
-            'choices': [
-                {'text': '1', 'is_correct': False, 'display_order': 1},
-                {'text': '2', 'is_correct': False, 'display_order': 2},
-                {'text': '3', 'is_correct': False, 'display_order': 3},
-                {'text': '4', 'is_correct': True, 'display_order': 4},
-                {'text': '5', 'is_correct': False, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        data = copy.deepcopy(self.base_data)
+        data['year'] = future_year
+        self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'year': ['Question year can not be in the future.']}
         )
 
     def test_create_question_with_less_than_4_choices(self):
-        data = {
-            'stem': '2 + 2 equals',
-            'year': 2025,
-            'education_level': 'EF',
-            'choices': [
-                {'text': '1', 'is_correct': False, 'display_order': 1},
-                {'text': '2', 'is_correct': False, 'display_order': 2},
-                {'text': '4', 'is_correct': True, 'display_order': 3},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        data = copy.deepcopy(self.base_data)
+        data['choices'] = [
+            {'text': '1', 'is_correct': False, 'display_order': 1},
+            {'text': '2', 'is_correct': False, 'display_order': 2},
+            {'text': '4', 'is_correct': True, 'display_order': 3},
+        ]
+        self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(response.json(), {'choices': ['A question should have 4 or 5 choices.']})
+        self.assertEqual(response.data, {'choices': ['A question should have 4 or 5 choices.']})
 
     def test_create_question_with_more_than_5_choices(self):
-        data = {
-            'stem': '2 + 2 equals',
-            'year': 2025,
-            'education_level': 'EF',
-            'choices': [
-                {'text': '1', 'is_correct': False, 'display_order': 1},
-                {'text': '2', 'is_correct': False, 'display_order': 2},
-                {'text': '3', 'is_correct': False, 'display_order': 3},
-                {'text': '4', 'is_correct': True, 'display_order': 4},
-                {'text': '5', 'is_correct': False, 'display_order': 5},
-                {'text': '6', 'is_correct': False, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        data = copy.deepcopy(self.base_data)
+        data['choices'] = [
+            {'text': '1', 'is_correct': False, 'display_order': 1},
+            {'text': '2', 'is_correct': False, 'display_order': 2},
+            {'text': '3', 'is_correct': False, 'display_order': 3},
+            {'text': '4', 'is_correct': True, 'display_order': 4},
+            {'text': '5', 'is_correct': False, 'display_order': 5},
+            {'text': '6', 'is_correct': False, 'display_order': 5},
+        ]
+        self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(response.json(), {'choices': ['A question should have 4 or 5 choices.']})
+        self.assertEqual(response.data, {'choices': ['A question should have 4 or 5 choices.']})
 
     def test_create_question_with_more_than_one_correct_choice(self):
-        data = {
-            'stem': '2 + 2 equals',
-            'year': 2025,
-            'education_level': 'EF',
-            'choices': [
-                {'text': '1', 'is_correct': False, 'display_order': 1},
-                {'text': '2', 'is_correct': False, 'display_order': 2},
-                {'text': '3', 'is_correct': False, 'display_order': 3},
-                {'text': '4', 'is_correct': True, 'display_order': 4},
-                {'text': '5', 'is_correct': True, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        data = copy.deepcopy(self.base_data)
+        data['choices'] = [
+            {'text': '1', 'is_correct': False, 'display_order': 1},
+            {'text': '2', 'is_correct': False, 'display_order': 2},
+            {'text': '3', 'is_correct': False, 'display_order': 3},
+            {'text': '4', 'is_correct': True, 'display_order': 4},
+            {'text': '5', 'is_correct': True, 'display_order': 5},
+        ]
+        self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'choices': ['A question should have only one correct choice.']}
         )
 
     def test_create_question_without_correct_choice(self):
-        data = {
-            'stem': '2 + 2 equals',
-            'year': 2025,
-            'education_level': 'EF',
-            'choices': [
-                {'text': '1', 'is_correct': False, 'display_order': 1},
-                {'text': '2', 'is_correct': False, 'display_order': 2},
-                {'text': '3', 'is_correct': False, 'display_order': 3},
-                {'text': '4', 'is_correct': False, 'display_order': 4},
-                {'text': '5', 'is_correct': False, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        data = copy.deepcopy(self.base_data)
+        data['choices'] = [
+            {'text': '1', 'is_correct': False, 'display_order': 1},
+            {'text': '2', 'is_correct': False, 'display_order': 2},
+            {'text': '3', 'is_correct': False, 'display_order': 3},
+            {'text': '4', 'is_correct': False, 'display_order': 4},
+            {'text': '5', 'is_correct': False, 'display_order': 5},
+        ]
+        self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'choices': ['A question should have only one correct choice.']}
         )
 
     def test_create_question_with_repetead_display_order(self):
-        data = {
-            'stem': '2 + 2 equals',
-            'year': 2025,
-            'education_level': 'EF',
-            'choices': [
-                {'text': '1', 'is_correct': False, 'display_order': 1},
-                {'text': '2', 'is_correct': False, 'display_order': 2},
-                {'text': '3', 'is_correct': False, 'display_order': 3},
-                {'text': '4', 'is_correct': True, 'display_order': 4},
-                {'text': '5', 'is_correct': False, 'display_order': 1},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        data = copy.deepcopy(self.base_data)
+        data['choices'] = [
+            {'text': '1', 'is_correct': False, 'display_order': 1},
+            {'text': '2', 'is_correct': False, 'display_order': 2},
+            {'text': '3', 'is_correct': False, 'display_order': 3},
+            {'text': '4', 'is_correct': True, 'display_order': 4},
+            {'text': '5', 'is_correct': False, 'display_order': 1},
+        ]
+        self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'choices': ['A question cannot have choices with repeated display order.']}
         )
 
