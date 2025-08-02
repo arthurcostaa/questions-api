@@ -219,7 +219,7 @@ class QuestionRetrieveViewTestCase(APITestCase):
         self.assertEqual(response.data, {'detail': 'Authentication credentials were not provided.'})
 
 
-class QuestionDestroyViewTest(APITestCase):
+class QuestionDestroyViewTestCase(APITestCase):
     def authenticate(self, user):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {user.access_token}')
 
@@ -274,43 +274,49 @@ class QuestionDestroyViewTest(APITestCase):
         self.assertEqual(response.data, {'detail': 'No Question matches the given query.'})
 
 
-class QuestionUpdateViewTest(APITestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.user = CustomUser.objects.create_user(
+class QuestionUpdateViewTestCase(APITestCase):
+    def authenticate(self, user):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {user.access_token}')
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = CustomUser.objects.create_user(
             name='johndoe', email='johndoe@email.com', password='Str0ngP4ssw0rd#123'
         )
-        self.user.access_token = AccessToken.for_user(self.user)
-        self.admin = CustomUser.objects.create_superuser(
+        cls.user.access_token = AccessToken.for_user(cls.user)
+        cls.admin = CustomUser.objects.create_superuser(
             name='admin', email='admin@email.com', password='Str0ngP4ssw0rd#123'
         )
-        self.admin.access_token = AccessToken.for_user(self.admin)
-        self.question = Question.objects.create(
+        cls.admin.access_token = AccessToken.for_user(cls.admin)
+        cls.question = Question.objects.create(
             stem='2 + 2 equals', year=2025, education_level='EF'
         )
-        self.choice1 = Choice.objects.create(question=self.question, text='1', is_correct=False, display_order=1)
-        self.choice2 = Choice.objects.create(question=self.question, text='2', is_correct=False, display_order=2)
-        self.choice3 = Choice.objects.create(question=self.question, text='3', is_correct=False, display_order=3)
-        self.choice4 = Choice.objects.create(question=self.question, text='4', is_correct=False, display_order=4)
-        self.choice5 = Choice.objects.create(question=self.question, text='5', is_correct=True, display_order=5)
-
-    def test_update_question_with_admin_user(self):
-        data = {
-            'stem': self.question.stem,
-            'year': self.question.year,
-            'education_level': self.question.education_level,
+        cls.choice1 = Choice.objects.create(question=cls.question, text='1', is_correct=False, display_order=1)
+        cls.choice2 = Choice.objects.create(question=cls.question, text='2', is_correct=False, display_order=2)
+        cls.choice3 = Choice.objects.create(question=cls.question, text='3', is_correct=False, display_order=3)
+        cls.choice4 = Choice.objects.create(question=cls.question, text='4', is_correct=False, display_order=4)
+        cls.choice5 = Choice.objects.create(question=cls.question, text='5', is_correct=True, display_order=5)
+        cls.url = reverse('question-detail', kwargs={'pk': cls.question.id})
+        cls.base_data = {
+            'stem': cls.question.stem,
+            'year': cls.question.year,
+            'education_level': cls.question.education_level,
             'choices': [
-                {'id': self.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
-                {'id': self.question.choices.all()[1].id, 'text': '2', 'is_correct': False, 'display_order': 2},
-                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
-                {'id': self.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
-                {'id': self.question.choices.all()[4].id, 'text': '5', 'is_correct': False, 'display_order': 5},
+                {'id': cls.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
+                {'id': cls.question.choices.all()[1].id, 'text': '2', 'is_correct': False, 'display_order': 2},
+                {'id': cls.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
+                {'id': cls.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
+                {'id': cls.question.choices.all()[4].id, 'text': '5', 'is_correct': False, 'display_order': 5},
             ]
         }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.put(
-            reverse('question-detail', kwargs={'pk': self.question.id}), data=data
-        )
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_update_question_with_admin_user(self):
+        data = self.base_data
+        self.authenticate(self.admin)
+        response = self.client.put(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], self.question.id)
         self.assertEqual(response.data['stem'], data['stem'])
@@ -322,160 +328,83 @@ class QuestionUpdateViewTest(APITestCase):
         self.assertEqual(choices, data['choices'])
 
     def test_update_question_with_normal_user(self):
-        data = {
-            'stem': self.question.stem,
-            'year': self.question.year,
-            'education_level': self.question.education_level,
-            'choices': [
-                {'id': self.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
-                {'id': self.question.choices.all()[1].id, 'text': '2', 'is_correct': False, 'display_order': 2},
-                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
-                {'id': self.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
-                {'id': self.question.choices.all()[4].id, 'text': '5', 'is_correct': False, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        response = self.client.put(
-            reverse('question-detail', kwargs={'pk': self.question.id}), data=data
-        )
+        data = self.base_data
+        self.authenticate(self.user)
+        response = self.client.put(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'detail': 'You do not have permission to perform this action.'}
         )
 
     def test_update_question_with_missing_choice(self):
-        data = {
-            'stem': self.question.stem,
-            'year': self.question.year,
-            'education_level': self.question.education_level,
-            'choices': [
-                {'id': self.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
-                {'id': self.question.choices.all()[1].id, 'text': '2', 'is_correct': False, 'display_order': 2},
-                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
-                {'id': self.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.put(
-            reverse('question-detail', kwargs={'pk': self.question.id}), data=data
-        )
+        data = copy.deepcopy(self.base_data)
+        data['choices'] = data['choices'][:4]
+        self.authenticate(self.admin)
+        response = self.client.put(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         missing_choice_id = self.question.choices.all()[4].id
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'choices': [f'Choices id [{missing_choice_id}] not present in new question data.']}
         )
 
     def test_update_question_with_year_in_the_future(self):
-        data = {
-            'stem': self.question.stem,
-            'year': date.today().year + 1,
-            'education_level': self.question.education_level,
-            'choices': [
-                {'id': self.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
-                {'id': self.question.choices.all()[1].id, 'text': '2', 'is_correct': False, 'display_order': 2},
-                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
-                {'id': self.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
-                {'id': self.question.choices.all()[4].id, 'text': '5', 'is_correct': False, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.put(
-            reverse('question-detail', kwargs={'pk': self.question.id}), data=data
-        )
+        data = copy.deepcopy(self.base_data)
+        data['year'] = date.today().year + 1
+        self.authenticate(self.admin)
+        response = self.client.put(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'year': ['Question year can not be in the future.']}
         )
 
     def test_update_question_with_less_than_4_choices(self):
-        data = {
-            'stem': self.question.stem,
-            'year': self.question.year,
-            'education_level': self.question.education_level,
-            'choices': [
-                {'id': self.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
-                {'id': self.question.choices.all()[1].id, 'text': '2', 'is_correct': False, 'display_order': 2},
-                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.put(
-            reverse('question-detail', kwargs={'pk': self.question.id}), data=data
-        )
+        data = copy.deepcopy(self.base_data)
+        data['choices'] = data['choices'][:3]
+        self.authenticate(self.admin)
+        response = self.client.put(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'choices': ['A question should have 4 or 5 choices.']}
         )
 
     def test_update_question_with_more_than_5_choices(self):
-        data = {
-            'stem': self.question.stem,
-            'year': self.question.year,
-            'education_level': self.question.education_level,
-            'choices': [
-                {'id': self.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
-                {'id': self.question.choices.all()[1].id, 'text': '2', 'is_correct': False, 'display_order': 2},
-                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
-                {'id': self.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
-                {'id': self.question.choices.all()[4].id, 'text': '5', 'is_correct': False, 'display_order': 5},
-                {'text': '6', 'is_correct': False, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.put(
-            reverse('question-detail', kwargs={'pk': self.question.id}), data=data
-        )
+        data = copy.deepcopy(self.base_data)
+        data['choices'].append({'text': '6', 'is_correct': False, 'display_order': 5})
+        self.authenticate(self.admin)
+        response = self.client.put(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'choices': ['A question should have 4 or 5 choices.']}
         )
 
     def test_update_question_with_repeated_choice_id(self):
-        repeated_choice_id = self.question.choices.all()[0].id
-        missing_choice_id = self.question.choices.all()[1].id
-        data = {
-            'stem': self.question.stem,
-            'year': self.question.year,
-            'education_level': self.question.education_level,
-            'choices': [
-                {'id': repeated_choice_id, 'text': '1', 'is_correct': False, 'display_order': 1},
-                {'id': repeated_choice_id, 'text': '1', 'is_correct': False, 'display_order': 2},
-                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
-                {'id': self.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
-                {'id': self.question.choices.all()[4].id, 'text': '5', 'is_correct': False, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.put(
-            reverse('question-detail', kwargs={'pk': self.question.id}), data=data
-        )
+        data = copy.deepcopy(self.base_data)
+
+        repeated_choice = data['choices'][0].copy()
+        missing_choice = data['choices'][1]
+        missing_choice_id = missing_choice['id']
+        repeated_choice['display_order'] = missing_choice['display_order']
+        data['choices'][1] = repeated_choice
+
+        self.authenticate(self.admin)
+        response = self.client.put(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'choices': [f'Choices id [{missing_choice_id}] not present in new question data.']}
         )
 
     def test_update_unexistent_question(self):
-        data = {
-            'stem': self.question.stem,
-            'year': self.question.year,
-            'education_level': self.question.education_level,
-            'choices': [
-                {'id': self.question.choices.all()[0].id, 'text': '1', 'is_correct': False, 'display_order': 1},
-                {'id': self.question.choices.all()[1].id, 'text': '1', 'is_correct': False, 'display_order': 2},
-                {'id': self.question.choices.all()[2].id, 'text': '3', 'is_correct': False, 'display_order': 3},
-                {'id': self.question.choices.all()[3].id, 'text': '4', 'is_correct': True, 'display_order': 4},
-                {'id': self.question.choices.all()[4].id, 'text': '5', 'is_correct': False, 'display_order': 5},
-            ]
-        }
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
+        data = self.base_data
+        question_id = 9999999
+        self.authenticate(self.admin)
         response = self.client.put(
-            reverse('question-detail', kwargs={'pk': 9999999}), data=data
+            reverse('question-detail', kwargs={'pk': question_id}), data=data
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertDictEqual(response.json(), {'detail': 'No Question matches the given query.'})
+        self.assertEqual(response.data, {'detail': 'No Question matches the given query.'})
