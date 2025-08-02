@@ -220,57 +220,58 @@ class QuestionRetrieveViewTestCase(APITestCase):
 
 
 class QuestionDestroyViewTest(APITestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.user = CustomUser.objects.create_user(
+    def authenticate(self, user):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {user.access_token}')
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = CustomUser.objects.create_user(
             name='johndoe', email='johndoe@email.com', password='Str0ngP4ssw0rd#123'
         )
-        self.user.access_token = AccessToken.for_user(self.user)
-        self.admin = CustomUser.objects.create_superuser(
+        cls.user.access_token = AccessToken.for_user(cls.user)
+        cls.admin = CustomUser.objects.create_superuser(
             name='admin', email='admin@email.com', password='Str0ngP4ssw0rd#123'
         )
-        self.admin.access_token = AccessToken.for_user(self.admin)
-        self.question = Question.objects.create(
+        cls.admin.access_token = AccessToken.for_user(cls.admin)
+        cls.question = Question.objects.create(
             stem='2 + 2 equals', year=2025, education_level='EF'
         )
-        self.choice1 = Choice.objects.create(question=self.question, text='1', is_correct=False, display_order=1)
-        self.choice2 = Choice.objects.create(question=self.question, text='2', is_correct=False, display_order=2)
-        self.choice3 = Choice.objects.create(question=self.question, text='3', is_correct=False, display_order=3)
-        self.choice4 = Choice.objects.create(question=self.question, text='4', is_correct=True, display_order=4)
-        self.choice5 = Choice.objects.create(question=self.question, text='5', is_correct=False, display_order=5)
+        cls.choice1 = Choice.objects.create(question=cls.question, text='1', is_correct=False, display_order=1)
+        cls.choice2 = Choice.objects.create(question=cls.question, text='2', is_correct=False, display_order=2)
+        cls.choice3 = Choice.objects.create(question=cls.question, text='3', is_correct=False, display_order=3)
+        cls.choice4 = Choice.objects.create(question=cls.question, text='4', is_correct=True, display_order=4)
+        cls.choice5 = Choice.objects.create(question=cls.question, text='5', is_correct=False, display_order=5)
+        cls.url = reverse('question-detail', kwargs={'pk': cls.question.id})
+
+    def setUp(self):
+        self.client = APIClient()
 
     def test_delete_question_with_admin_user(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.delete(
-            reverse('question-detail', kwargs={'pk': self.question.id})
-        )
+        self.authenticate(self.admin)
+        response = self.client.delete(self.url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertIsNone(response.data)
 
     def test_delete_question_with_normal_user(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        response = self.client.delete(
-            reverse('question-detail', kwargs={'pk': self.question.id})
-        )
+        self.authenticate(self.user)
+        response = self.client.delete(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertDictEqual(
-            response.json(),
+        self.assertEqual(
+            response.data,
             {'detail': 'You do not have permission to perform this action.'}
         )
 
     def test_delete_question_with_unauthenticated_user(self):
-        response = self.client.delete(
-            reverse('question-detail', kwargs={'pk': self.question.id})
-        )
+        response = self.client.delete(self.url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.json(), {'detail': 'Authentication credentials were not provided.'})
+        self.assertEqual(response.data, {'detail': 'Authentication credentials were not provided.'})
 
     def test_delete_unexistent_question(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.delete(
-            reverse('question-detail', kwargs={'pk': 9999999})
-        )
+        question_id = 9999999
+        self.authenticate(self.admin)
+        response = self.client.delete(reverse('question-detail', kwargs={'pk': question_id}))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertDictEqual(response.json(), {'detail': 'No Question matches the given query.'})
+        self.assertEqual(response.data, {'detail': 'No Question matches the given query.'})
 
 
 class QuestionUpdateViewTest(APITestCase):
