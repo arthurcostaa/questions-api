@@ -2,24 +2,27 @@ from datetime import date
 
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
+from rest_framework.test import APIClient, APITestCase
 from rest_framework_simplejwt.tokens import AccessToken
 
 from users.models import CustomUser
-from questions.models import Choice, Question, UserAnswer
-
+from questions.models import Choice, Question
 
 class QuestionCreateViewTest(APITestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.admin = CustomUser.objects.create_superuser(
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = CustomUser.objects.create_superuser(
             name='admin', email='admin@email.com', password='Str0ngP4ssw0rd#123'
         )
-        self.admin.access_token = AccessToken.for_user(self.admin)
-        self.user = CustomUser.objects.create_user(
+        cls.admin.access_token = AccessToken.for_user(cls.admin)
+        cls.user = CustomUser.objects.create_user(
             name='johndoe', email='johndoe@email.com', password='Str0ngP4ssw0rd#123'
         )
-        self.user.access_token = AccessToken.for_user(self.user)
+        cls.user.access_token = AccessToken.for_user(cls.user)
+        cls.url = reverse('question-list')
+
+    def setUp(self):
+        self.client = APIClient()
 
     def test_create_question_with_admin_user(self):
         data = {
@@ -35,7 +38,7 @@ class QuestionCreateViewTest(APITestCase):
             ]
         }
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.post(reverse('question-list'), data=data)
+        response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIsNotNone(response.json()['id'])
         self.assertEqual(response.json()['stem'], data['stem'])
@@ -60,7 +63,7 @@ class QuestionCreateViewTest(APITestCase):
             ]
         }
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        response = self.client.post(reverse('question-list'), data=data)
+        response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertDictEqual(
             response.json(), {
@@ -82,7 +85,7 @@ class QuestionCreateViewTest(APITestCase):
             ]
         }
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.post(reverse('question-list'), data=data)
+        response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(
             response.json(),
@@ -101,7 +104,7 @@ class QuestionCreateViewTest(APITestCase):
             ]
         }
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.post(reverse('question-list'), data=data)
+        response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(response.json(), {'choices': ['A question should have 4 or 5 choices.']})
 
@@ -120,7 +123,7 @@ class QuestionCreateViewTest(APITestCase):
             ]
         }
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.post(reverse('question-list'), data=data)
+        response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(response.json(), {'choices': ['A question should have 4 or 5 choices.']})
 
@@ -138,7 +141,7 @@ class QuestionCreateViewTest(APITestCase):
             ]
         }
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.post(reverse('question-list'), data=data)
+        response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(
             response.json(),
@@ -159,7 +162,7 @@ class QuestionCreateViewTest(APITestCase):
             ]
         }
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.post(reverse('question-list'), data=data)
+        response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(
             response.json(),
@@ -180,7 +183,7 @@ class QuestionCreateViewTest(APITestCase):
             ]
         }
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.access_token}')
-        response = self.client.post(reverse('question-list'), data=data)
+        response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertDictEqual(
             response.json(),
@@ -545,82 +548,3 @@ class QuestionUpdateViewTest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertDictEqual(response.json(), {'detail': 'No Question matches the given query.'})
-
-
-class UserAnswerViewSet(APITestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.user = CustomUser.objects.create(email='test@email.com', name='test', password='Str0ng#P4ssw0d!123')
-        self.user.access_token = AccessToken.for_user(self.user)
-        self.question1 = Question.objects.create(stem='1 + 1 equals', year=2025, education_level='EF')
-        self.choice1 = Choice.objects.create(question=self.question1, text='1', is_correct=False, display_order=1)
-        self.choice2 = Choice.objects.create(question=self.question1, text='2', is_correct=True, display_order=2)
-        self.choice3 = Choice.objects.create(question=self.question1, text='3', is_correct=False, display_order=3)
-        self.choice4 = Choice.objects.create(question=self.question1, text='4', is_correct=False, display_order=4)
-        self.question2 = Question.objects.create(stem='2 + 2 equals', year=2025, education_level='EF')
-        self.choice5 = Choice.objects.create(question=self.question2, text='1', is_correct=False, display_order=1)
-        self.choice6 = Choice.objects.create(question=self.question2, text='2', is_correct=False, display_order=2)
-        self.choice7 = Choice.objects.create(question=self.question2, text='3', is_correct=False, display_order=3)
-        self.choice8 = Choice.objects.create(question=self.question2, text='4', is_correct=True, display_order=4)
-
-    def test_answer_question(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        data = {'choice': self.choice2.id}
-        response = self.client.post(
-            reverse('question-answer-list', kwargs={'question_pk': self.question1.id}),
-            data=data
-        )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['choice'], data['choice'])
-        self.assertTrue(response.data['is_correct'])
-        self.assertIsNotNone(response.data['answered_at'])
-
-    def test_answer_question_with_unauthenticated_user(self):
-        data = {'choice': self.choice2.id}
-        response = self.client.post(
-            reverse('question-answer-list', kwargs={'question_pk': self.question1.id}),
-            data=data
-        )
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.data, {'detail': 'Authentication credentials were not provided.'})
-
-    def test_answer_question_with_unexistent_question(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        data = {'choice': self.choice1.id}
-        response = self.client.post(
-            reverse('question-answer-list', kwargs={'question_pk': 99999}),
-            data=data
-        )
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data, {'detail': 'No Question matches the given query.'})
-
-    def test_answer_question_with_unexistent_choice(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        data = {'question': self.question1.id, 'choice': 9999}
-        response = self.client.post(
-            reverse('question-answer-list', kwargs={'question_pk': self.question1.id}),
-            data=data
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data, {'choice': ['Invalid pk "9999" - object does not exist.']})
-
-    def test_answer_question_with_choice_of_another_question(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        data = {'question': self.question1.id, 'choice': self.choice5.id}
-        response = self.client.post(
-            reverse('question-answer-list', kwargs={'question_pk': self.question1.id}),
-            data=data
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(response.data, {'error': ["This choice doesn't belong to this question."]})
-
-    def test_answer_question_twice(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user.access_token}')
-        UserAnswer.objects.create(question=self.question1, choice=self.choice1, user=self.user)
-        data = {'question': self.question1.id, 'choice': self.choice1.id}
-        response = self.client.post(
-            reverse('question-answer-list', kwargs={'question_pk': self.question1.id}),
-            data=data
-        )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertDictEqual(response.data, {'error': ['Question already answered by the user.']})
