@@ -1,7 +1,7 @@
 from datetime import date
 
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-from rest_framework.validators import UniqueTogetherValidator
 
 from questions.models import Choice, Question, UserAnswer
 from questions.utils import (
@@ -95,11 +95,13 @@ class QuestionSerializer(serializers.ModelSerializer):
 class UserAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAnswer
-        fields = ['question', 'choice', 'answered_at', 'is_correct']
+        fields = ['choice', 'answered_at', 'is_correct']
         read_only_fields = ['is_correct']
 
     def validate(self, data):
-        question = data['question']
+        question_id = self.context['view'].kwargs['question_pk']
+        question = get_object_or_404(Question.objects.prefetch_related('choices'), id=question_id)
+
         choice = data['choice']
 
         if choice not in question.choices.all():

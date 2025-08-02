@@ -13,8 +13,6 @@ from rest_framework_simplejwt.views import (
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('silk/', include('silk.urls', namespace='silk')),
-    path('users/', include('users.urls')),
-    path('questions/', include('questions.urls')),
     path('docs/schema/', SpectacularAPIView.as_view(), name='schema'),
     path(
         'docs/swagger/',
@@ -28,4 +26,6 @@ urlpatterns = [
     ),
     path('auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('users/', include('users.urls')),
+    path('', include('questions.urls')),
 ]
