@@ -9,6 +9,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 from users.models import CustomUser
 from questions.models import Choice, Question
 
+
 class QuestionCreateViewTestCase(APITestCase):
     def authenticate(self, user):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {user.access_token}')
@@ -41,17 +42,18 @@ class QuestionCreateViewTestCase(APITestCase):
         }
 
     def test_create_question_with_admin_user(self):
+        data = self.base_data
         self.authenticate(self.admin)
-        response = self.client.post(self.url, data=self.base_data)
+        response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIsNotNone(response.data['id'])
-        self.assertEqual(response.data['stem'], self.base_data['stem'])
-        self.assertEqual(response.data['year'], self.base_data['year'])
-        self.assertEqual(response.data['education_level'], self.base_data['education_level'])
+        self.assertEqual(response.data['stem'], data['stem'])
+        self.assertEqual(response.data['year'], data['year'])
+        self.assertEqual(response.data['education_level'], data['education_level'])
 
         question = Question.objects.prefetch_related('choices').get(pk=response.data['id'])
         choices = list(question.choices.order_by('display_order').values('text', 'is_correct', 'display_order'))
-        self.assertEqual(choices, self.base_data['choices'])
+        self.assertEqual(choices, data['choices'])
 
     def test_create_question_with_normal_user(self):
         self.authenticate(self.user)
@@ -76,11 +78,7 @@ class QuestionCreateViewTestCase(APITestCase):
 
     def test_create_question_with_less_than_4_choices(self):
         data = copy.deepcopy(self.base_data)
-        data['choices'] = [
-            {'text': '1', 'is_correct': False, 'display_order': 1},
-            {'text': '2', 'is_correct': False, 'display_order': 2},
-            {'text': '4', 'is_correct': True, 'display_order': 3},
-        ]
+        data['choices'] = data['choices'][:3]
         self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -88,14 +86,7 @@ class QuestionCreateViewTestCase(APITestCase):
 
     def test_create_question_with_more_than_5_choices(self):
         data = copy.deepcopy(self.base_data)
-        data['choices'] = [
-            {'text': '1', 'is_correct': False, 'display_order': 1},
-            {'text': '2', 'is_correct': False, 'display_order': 2},
-            {'text': '3', 'is_correct': False, 'display_order': 3},
-            {'text': '4', 'is_correct': True, 'display_order': 4},
-            {'text': '5', 'is_correct': False, 'display_order': 5},
-            {'text': '6', 'is_correct': False, 'display_order': 5},
-        ]
+        data['choices'].append({'text': '6', 'is_correct': False, 'display_order': 5},)
         self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -103,13 +94,7 @@ class QuestionCreateViewTestCase(APITestCase):
 
     def test_create_question_with_more_than_one_correct_choice(self):
         data = copy.deepcopy(self.base_data)
-        data['choices'] = [
-            {'text': '1', 'is_correct': False, 'display_order': 1},
-            {'text': '2', 'is_correct': False, 'display_order': 2},
-            {'text': '3', 'is_correct': False, 'display_order': 3},
-            {'text': '4', 'is_correct': True, 'display_order': 4},
-            {'text': '5', 'is_correct': True, 'display_order': 5},
-        ]
+        data['choices'][0]['is_correct'] = True
         self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -120,13 +105,7 @@ class QuestionCreateViewTestCase(APITestCase):
 
     def test_create_question_without_correct_choice(self):
         data = copy.deepcopy(self.base_data)
-        data['choices'] = [
-            {'text': '1', 'is_correct': False, 'display_order': 1},
-            {'text': '2', 'is_correct': False, 'display_order': 2},
-            {'text': '3', 'is_correct': False, 'display_order': 3},
-            {'text': '4', 'is_correct': False, 'display_order': 4},
-            {'text': '5', 'is_correct': False, 'display_order': 5},
-        ]
+        data['choices'][3]['is_correct'] = False
         self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -137,13 +116,7 @@ class QuestionCreateViewTestCase(APITestCase):
 
     def test_create_question_with_repetead_display_order(self):
         data = copy.deepcopy(self.base_data)
-        data['choices'] = [
-            {'text': '1', 'is_correct': False, 'display_order': 1},
-            {'text': '2', 'is_correct': False, 'display_order': 2},
-            {'text': '3', 'is_correct': False, 'display_order': 3},
-            {'text': '4', 'is_correct': True, 'display_order': 4},
-            {'text': '5', 'is_correct': False, 'display_order': 1},
-        ]
+        data['choices'][4]['display_order'] = 1
         self.authenticate(self.admin)
         response = self.client.post(self.url, data=data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
